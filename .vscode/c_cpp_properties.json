@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\Emil\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\**",
+                "C:\\Users\\Emil\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.6.207\\**"
+            ],
+            "forcedInclude": [
+                "C:\\Users\\Emil\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.6.207\\cores\\arduino\\Arduino.h"
+            ],
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}
