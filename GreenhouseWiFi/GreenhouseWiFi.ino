@@ -1,52 +1,99 @@
+// Import required libraries
 #include "ESP8266WiFi.h"
+#include "ESP8266mDNS.h"
 #include "ESPAsyncTCP.h"
 #include "ESPAsyncWebServer.h"
+#include "ArduinoJson.h"
+#include "SerialTransfer.h"
 #include "FS.h"
 
-const char* ssid     = "Waoo4920_VR48";
+typedef struct{
+  float temp_outside;
+  float hum_outside;
+  float temp_inside[3];
+  float hum_inside[3];
+} sensor_data_t;
+
+sensor_data_t sensor_data;
+
+// Replace with your network credentials
+const char* ssid = "NOKIA-7CF1";
 const char* password = "Solvang121";
-const char* device = "GreenhouseWiFi";
 
+// Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
+SerialTransfer uart_transfer;
 
-IPAddress ip(192, 168, 1, 154);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(8, 8, 8, 8);   //optional
+void setup(){
+  // Serial port for debugging purposes
+  Serial.begin(115200);
+  uart_transfer.begin(Serial);
 
-void setup() {
-
-  Serial.begin(9600);
-  delay(10);
-  
+  // Initialize SPIFFS
   if(!SPIFFS.begin()){
-    Serial.println("Failed to initialise SPIFFS");
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
   }
-
-  Serial.println("WiFi configured");
-  WiFi.disconnect();
-  WiFi.hostname(device); 
-  WiFi.config(ip, subnet, gateway, dns);
   
-  Serial.println("Connecting to WiFi");
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
-
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1000);
+    Serial.println("Connecting to WiFi..");
   }
 
-  Serial.println("");
-  Serial.println("Connected");
+  // Print ESP Local IP Address
+  Serial.println(WiFi.localIP());
+
+  if (!MDNS.begin("greenhouse")) {
+    Serial.println("Error setting up MDNS responder!");
+  }
   
+  // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", String(random(1000)));
+    request->send(SPIFFS, "/index.html");
+  });
+  
+  // Route to load style.css file
+  server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/bootstrap.min.css", "text/css");
   });
 
+  // Route to load style.css file
+  server.on("/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/jquery.min.js", "text/css");
+  });
+
+  server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
+
+    DynamicJsonDocument json(1024);
+
+    json["temp_outside"] = sensor_data.temp_outside;
+    json["hum_outside"] = sensor_data.hum_outside;
+
+    json["temp_inside"][0] = sensor_data.temp_inside[0];
+    json["temp_inside"][1] = sensor_data.temp_inside[1];
+    json["temp_inside"][2] = sensor_data.temp_inside[2];
+
+    json["hum_inside"][0] = sensor_data.hum_inside[0];
+    json["hum_inside"][1] = sensor_data.hum_inside[1];
+    json["hum_inside"][2] = sensor_data.hum_inside[2];
+
+    char stringout[200];
+    serializeJson(json, stringout);
+    request->send(200, "application/json", stringout);
+    
+  });
+
+  // Start server
   server.begin();
 }
-
-void loop() {
-
+ 
+void loop(){
+  // Read sensor data from Mega
+  if( uart_transfer.available()  ){
+    // Read struct into command_buffer
+    uart_transfer.rxObj( sensor_data );
+  }
   
 }

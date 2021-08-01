@@ -54,6 +54,7 @@ void control_run(){
         control_manuel();
     }
 
+
     control_manager();
 
 }
@@ -74,8 +75,8 @@ void control_auto(){
             // Regulate after temperature 
             error = ref_temp[i] - temp_inside[i];
 
-            delta = temp_outside - temp_inside[i];
-            dir = (delta > 0)-(delta < 0);
+            delta = temp_outside - temp_inside[i];   
+            if( delta > 0) dir = 1; else dir = -1;
 
             control = temp_gain * error * (float)dir; 
         }else{
@@ -83,7 +84,7 @@ void control_auto(){
             error = ref_hum[i] - hum_inside[i];
 
             delta = hum_outside - hum_inside[i];
-            dir = (delta > 0)-(delta < 0);
+            if( delta > 0) dir = 1; else dir = -1;
 
             control = hum_gain * error * (float)dir; 
         }
@@ -122,7 +123,7 @@ void control_task( void *start, void *end, uint8_t zone, uint16_t runtime  ){
     int i = 0;
     while(i < MAX_TASKS)
     {
-        // Check if there is a free spot in the tasks
+        // Check if there is a free spot in the task manager
         if(tasks[i].attached != 1)
         {
             tasks[i].id = i;

@@ -1,33 +1,34 @@
+#include <SerialTransfer.h>
 #include "params.h"
 #include "sensors.h"
 #include "control.h"
-#include "display.h"
 
-void startfunc( int zone ){
-  Serial.println( String(millis()) + " Start " + String(zone) );  
-}
-
-void endfunc( int zone ){
-  Serial.println( String(millis()) + " End " + String(zone) );  
-}
+SerialTransfer uart_transfer;
 
 void setup() {
-    control_init();
 
-    sensors_init();
-    
-    Serial.begin(9600);
+  Serial.begin(115200);
+  Serial.println("Greenhouse Booting...");
 
-    delay(2000);
+  Serial3.begin(115200);
+  uart_transfer.begin(Serial3);
+
+  sensors_init();
+  control_init();
+
   
-    control_task( startfunc, endfunc, 2, 4000 );
-    control_task( startfunc, endfunc, 3, 2500 );
+      
 }
 
 void loop() {
 
+  
+  sensor_dht_read();
+  uart_transfer.sendDatum( sensor_data );
+
   control_run();
 
-  delay(100);
 
+  delay(1000);
+  
 }

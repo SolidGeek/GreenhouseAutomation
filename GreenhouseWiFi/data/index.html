@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Bootstrap CSS -->
+        <link href="bootstrap.min.css" rel="stylesheet">
+        <script src="jquery.min.js" type="text/javascript"></script>
+
+        <style type="text/css">
+            .container{
+                max-width: 960px;
+            }
+        </style>
+
+        <title>Greenhouse Control</title>
+    </head>
+    <body class="bg-light bg-gradient">
+        <div class="container mt-5">
+
+            <div class="d-flex justify-content-center mb-3">
+                <h1 class="fs-2 p-4 pt-0 pb-0 position-relative">Greenhouse Control  <span class="ms-2 fs-6 badge bg-primary position-absolute top-0 start-100 translate-middle">v1.0</span></h1>
+            </div>
+            <div class="row">
+
+                <div class="col-md-12">
+
+                    <div class="card-group mb-3">
+
+                        <div class="card">
+                            <div class="card-body d-grid gap-2">
+                                <button type="button" class="btn btn-block btn-success">Enable automatic</button>
+                                <button type="button" class="btn btn-block btn-primary">&#8593; Open all</button>
+                                <button type="button" class="btn btn-block btn-secondary">&#8595; Close all</button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>OUTSIDE</h5>
+
+                                <div class="d-flex">
+                                    <div class="pe-5">
+                                        <h6>Temperature</h6>
+                                        <h1><span id="temp_outside">0.0</span> &#176;</h1>
+                                    </div>
+
+                                    <div class="pe-5">
+                                        <h6>Humidity</h6>
+                                        <h1><span id="hum_outside">0.0</span> &#37;</h1>
+                                    </div>
+                                </div>
+                            </div> 
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="col-md-12">
+
+                    <div class="card-group mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">ZONE 1</h6>
+                                <div class="d-flex ">
+                                    <div class="flex-fill pe-2">
+                                        <h6>Temperature</h6>
+                                        <h3><span id="temp_zone_1">0.0</span> &#176;</h3>
+                                        <input type="number" class="form-control" value="20.0">
+                                    </div>
+
+                                    <div class="flex-fill ps-2">
+                                        <h6>Humidity</h6>
+                                        <h3><span id=hum_zone_1">0.0</span> &#37;</h3>
+                                        <input type="number" class="form-control" value="50.0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card-footer d-flex">
+                                <button type="button" class="btn btn-sm btn-primary flex-fill">&#8593; Open</button>
+                                <button type="button" class="btn btn-sm btn-secondary flex-fill">&#8595; Close</button>
+                            </div>
+                        </div>
+                
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">ZONE 2</h6>
+                                <div class="d-flex ">
+                                    <div class="flex-fill pe-2">
+                                        <h6>Temperature</h6>
+                                        <h3><span id="temp_zone_2">0.0</span> &#176;</h3>
+                                        <input type="number" class="form-control" value="20.0">
+                                    </div>
+
+                                    <div class="flex-fill ps-2">
+                                        <h6>Humidity</h6>
+                                        <h3><span id="hum_zone_2">0.0</span> &#37;</h3>
+                                        <input type="number" class="form-control" value="50.0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex">
+                                <button type="button" class="btn btn-sm btn-primary flex-fill">&#8593; Open</button>
+                                <button type="button" class="btn btn-sm btn-secondary flex-fill">&#8595; Close</button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">ZONE 3</h6>
+                                <div class="d-flex ">
+                                    <div class="flex-fill pe-2">
+                                        <h6>Temperature</h6>
+                                        <h3><span id="temp_zone_3">0.0</span> &#176;</h3>
+                                        <input type="number" class="form-control" value="20.0">
+                                    </div>
+
+                                    <div class="flex-fill ps-2">
+                                        <h6>Humidity</h6>
+                                        <h3><span id="hum_zone_3">0.0</span> &#37;</h3>
+                                        <input type="number" class="form-control" value="50.0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex">
+                                <button type="button" class="btn btn-sm btn-primary flex-fill">&#8593; Open</button>
+                                <button type="button" class="btn btn-sm btn-secondary flex-fill">&#8595; Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+
+        </div>
+
+        <script type="text/javascript">
+            $(function(){
+                setInterval(function() {
+
+                    $.getJSON( "data", function( data ) {
+                        $("#temp_outside").text(data.temp_outside);
+                        $("#hum_outside").text(data.hum_outside);
+                    });
+
+                }, 1000);
+            });
+        </script>
+    </body>
+</html>
