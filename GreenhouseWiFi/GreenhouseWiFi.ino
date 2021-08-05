@@ -14,6 +14,20 @@ typedef struct{
   float hum_inside[3];
 } sensor_data_t;
 
+
+typedef enum{
+  CMD_UNVALID = 0,
+  CMD_RESTART = 1,
+  CMD_ENABLE_AUTO,
+  CMD_ENABLE_MANUEL,
+  CMD_OPEN_ALL,
+  CMD_CLOSE_ALL,
+  CMD_OPEN_ZONE,
+  CMD_CLOSE_ZONE,
+  CMD_SET_TEMPERATURE,
+  CMD_SET_HUMIDITY,
+} command_t;
+
 sensor_data_t sensor_data;
 
 // Replace with your network credentials
@@ -54,16 +68,6 @@ void setup(){
     request->send(SPIFFS, "/index.html");
   });
   
-  // Route to load style.css file
-  server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/bootstrap.min.css", "text/css");
-  });
-
-  // Route to load style.css file
-  server.on("/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/jquery.min.js", "text/css");
-  });
-
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
 
     DynamicJsonDocument json(1024);
