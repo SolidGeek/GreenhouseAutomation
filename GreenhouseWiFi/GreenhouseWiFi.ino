@@ -1,11 +1,11 @@
 // Import required libraries
-#include "ESP8266WiFi.h"
-#include "ESP8266mDNS.h"
-#include "ESPAsyncTCP.h"
-#include "ESPAsyncWebServer.h"
-#include "ArduinoJson.h"
-#include "SerialTransfer.h"
-#include "FS.h"
+#include <FS.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
+#include <SerialTransfer.h>
 
 typedef struct{
   float temp_outside;
@@ -32,7 +32,8 @@ sensor_data_t sensor_data;
 
 // Replace with your network credentials
 const char* ssid = "NOKIA-7CF1";
-const char* password = "Solvang121";
+const char* pass = "Solvang121";
+const char* host = "greenhouse";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -50,17 +51,19 @@ void setup(){
   }
   
   // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  WiFi.hostname(host);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
   }
-
-  // Print ESP Local IP Address
+  
+  Serial.print("System ready on: ");
   Serial.println(WiFi.localIP());
 
-  if (!MDNS.begin("greenhouse")) {
-    Serial.println("Error setting up MDNS responder!");
+  if ( MDNS.begin(host) ) {
+      Serial.println("MDNS responder started");
   }
   
   // Route for root / web page
@@ -91,6 +94,9 @@ void setup(){
 
   // Start server
   server.begin();
+
+  // Add service to MDNS-SD
+  MDNS.addService("http", "tcp", 80);
 }
  
 void loop(){
@@ -99,5 +105,7 @@ void loop(){
     // Read struct into command_buffer
     uart_transfer.rxObj( sensor_data );
   }
+
+  MDNS.update();
   
 }
