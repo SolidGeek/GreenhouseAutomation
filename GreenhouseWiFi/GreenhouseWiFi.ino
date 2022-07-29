@@ -39,6 +39,7 @@ const char* host = "greenhouse";
 AsyncWebServer server(80);
 SerialTransfer uart_transfer;
 
+
 void setup(){
   // Serial port for debugging purposes
   Serial.begin(115200);
@@ -52,6 +53,7 @@ void setup(){
   
   // Connect to Wi-Fi
   WiFi.mode(WIFI_STA);
+  
   WiFi.begin(ssid, pass);
   WiFi.hostname(host);
   while (WiFi.status() != WL_CONNECTED) {
@@ -69,6 +71,14 @@ void setup(){
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html");
+  });
+
+  server.on("/uPlot.iife.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/uPlot.iife.min.js");
+  });
+
+  server.on("/uPlot.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/uPlot.min.css");
   });
   
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){

@@ -1,0 +1,637 @@
+#include "params.h"
+#include "sensors.h"
+#include "control.h"
+#include "display.h"
+
+String currentSetting = "humidity";
+int currentZone = 1;
+int manuelTimeout = 0;
+
+volatile boolean systemMode = false; // false = automatisk styring, true = manuel styring
+
+void setup() {
+    control_init();
+
+    display_init();
+
+    sensors_init();
+
+    pinMode(19, INPUT_PULLUP);
+    attachInterrupt(4, setTemporaryManuel, LOW);
+
+    Serial.begin(9600);
+
+    checkTempAndHumidity();
+}
+
+void controlBoardStatus(String text, int duration = 0);
+void controlBoardSubStatus(String text, int duration = 0);
+
+void loop() {
+    if(checkWindFlag == false){
+
+        if((millis() - checkWindTime) >= checkWindDelay){
+            checkWindFlag = true; 
+            windMeasureTime = millis();
+        }
+
+        // Tjek systemmode, automatisk eller manuel
+        checkSystemMode();
+
+        // Tjek temperatur og luftfugithghed
+        // checkTempAndHumidity();
+
+        // Tjek om dørene til zone 2 er lukket eller åben.
+        checkDoors();
+
+        // Kontroller temperaturen i zone 2 (1) ved at tænde/slukke varmepumpen
+        controlTemp();
+
+        // Styr LCD-displayets opførsel
+        controlBoard();
+
+        if(systemMode == false){
+            // Hvis systemmode er sat til automatisk.
+
+            // Tjek om vindhastigheden er over den maksimale
+            if(isHurrican == false){
+                // Tilpas vinduerne alt efter temperaturene
+                autoWindowControl();  
+            }
+        }else{
+            for (int x = 0; x < zonesCount; x++) {
+                if(digitalRead(manualOpenPins[x]) == LOW){
+                    control_open(x);
+                }
+                else if(digitalRead(manualClosePins[x]) == LOW){
+                    control_close(x);  
+                }
+                else{
+                    control_stop(x);
+                }
+            }
+        }
+
+        // Tjek om det regner og luk kip-vinduerne hvis det gør.
+        checkRain();
+
+        // Tjek om vindhastigheden er over det maksimalt tilladte, og luk alle vinduer hvis det er.
+        checkWind();
+
+    }
+    else
+    {  
+        // Tjek vindhastigheden
+        checkWindSpeed();
+    }
+}
+
+void controlBoardStatus(String text, int duration){
+    lcd.clear();
+
+    lcd.setCursor(1,1);
+    lcd.print(text);
+
+    LCDclearScreen = true;
+    delay(duration);
+}
+
+void controlBoardSubStatus(String text, int duration){
+    lcd.setCursor(1,2);
+    lcd.print(text);
+
+    LCDclearScreen = true;
+    delay(duration);
+}
+
+void checkWindSpeed(){
+    if(LCDclearScreen == false){
+        controlBoardStatus("Vindhastighed");
+    }
+
+    // Mål vindhastigheden i 2 sekunder.
+    if((millis() - windMeasureTime) < 2000){
+        if(digitalRead(windMeasurePin) == LOW && windPulse == false){
+            windPulseCount++;
+            windPulse = true;
+        }
+
+        if(digitalRead(windMeasurePin) == HIGH){
+            windPulse = false;
+        }
+    }else{
+        int windPulseTime = millis() - windMeasureTime;
+
+        // Afstanden for 1 omdrejning
+        float distance = 0.6;
+        float pulseAverage = windPulseTime/windPulseCount;
+
+        if(windPulseCount != 0){
+            windSpeed = distance/(pulseAverage/1000);
+        }else{
+            windSpeed = 0.0;
+        }
+
+        checkWindFlag = false;
+        checkWindTime = millis();
+
+        controlBoardSubStatus((String)windSpeed + " m/s", 2000);
+
+        windPulsetime = 0;
+        windPulseCount = 0;
+        boolean windPulse = false;
+        windMeasureTime = millis();
+    }  
+}
+
+void checkWind(){
+    if(windSpeed >= maxWindSpeed){
+        isHurrican = true;
+        if(window_state == false){
+            controlBoardStatus("Orkanstyrke");
+
+            for (int x = 0; x < zonesCount; x++) {
+                controlBoardSubStatus("Lukker zone: " + (String)(x+1));
+                control_close(x); // LUK ALLE VINDUER i 40 sekunder
+                delay(40000);
+                control_stop(x);
+            }
+            window_state = true;
+        }
+    }
+    else
+    {
+        isHurrican = false;  
+    }
+}
+
+void checkRain(){
+    if(digitalRead(rainMeasurePin) == LOW){
+        isRaining = true;
+    }else{
+        isRaining = false;
+    }
+
+    // Hvis det regner, så luk kipvinduerne helt.
+    if(isRaining == true && top_window_state == false){
+        for (int x = 0; x < zonesCount; x++){
+            // Åben vinduerne i zone, men åben ikke kip da det regner.
+            digitalWrite(kipOpenPins[x], HIGH);
+            digitalWrite(kipClosePins[x], HIGH);
+            // Lad vinduerne åbne i antal sekunder
+        }
+
+        delay(40000);
+        // Stop så vinduerne
+        for (int x = 0; x < zonesCount; x++) {
+            control_stop(x);
+        }
+        top_window_state = true;
+    }
+}
+
+void checkDoors(){
+    if(digitalRead(doorsSensorPin) == HIGH){
+        // En af dørene er åben
+        if(doorsOpen == false){
+            doorsWasOpened = millis();
+        }
+        doorsOpen = true;
+    }else{
+        // Alle døre er lukket
+        doorsOpen = false;
+    }
+}
+
+void controlTemp(){
+  // Hvis der er gået mere end 5 minutter siden døren blev åbnet og den stadig er åben..
+  if(doorsOpen == true){
+    if((millis() - doorsWasOpened) > 300000){
+      // Sluk varmen
+      digitalWrite(tempControlPin, HIGH);
+    }
+  }else{
+    if(tempInside[1] > 12){
+      // Sluk varmen
+      digitalWrite(tempControlPin, HIGH);
+    }
+    else if(tempInside[1] < 10){
+      // Tænd varmen
+      digitalWrite(tempControlPin, LOW);
+    }
+  }
+}
+
+void checkSensorTempAndHumidity(int index = 0){
+  switch(index){
+    case 0:
+      tempInside[0] = dht0.readTemperature();
+      humidityInside[0] = dht0.readHumidity();
+    break;
+
+    case 1:
+      tempInside[1] = dht1.readTemperature();
+      humidityInside[1] = dht1.readHumidity();
+    break;
+
+    case 2:
+      tempInside[2] = dht2.readTemperature();
+      humidityInside[2] = dht2.readHumidity();
+    break;
+    
+    case 3:
+      tempOutside = dht3.readTemperature();
+      humidityOutside = dht3.readHumidity();  
+    break;
+  }
+} 
+
+void checkTempAndHumidity(){
+  //if (millis() - lastCheckTemp >= 60000) {
+    if(LCDclearScreen == false){
+      controlBoardStatus("Temperatur & fugt");
+    } 
+    
+    lastCheckTemp = millis();
+
+    for(int x = 0; x <= 3; x++){
+      if(x == 3){
+        bool gotValidData = false;
+        int y = 0;
+        while(gotValidData == false){
+          y++;
+          checkSensorTempAndHumidity(x); 
+
+          if(isnan(tempOutside) || isnan(humidityOutside)){
+            gotValidData = false; 
+          }else{
+            gotValidData = true;
+            break;  
+          }
+
+          controlBoardSubStatus("Udenfor: " + (String)y + " tests", 5);
+
+          if(y >= 10){
+            break;  
+          }
+
+          delay(4000);
+          
+        }
+         //Serial.println("Zone: " + (String)x + " " + (String)tempOutside + " " + (String)humidityOutside);
+      }else{
+        bool gotValidData = false;
+        int y = 0;
+        while(gotValidData == false){
+          y++;
+          checkSensorTempAndHumidity(x);  
+
+          if(isnan(tempInside[x]) || isnan(humidityInside[x])){
+            gotValidData = false;  
+          }else{
+            gotValidData = true;
+            break; 
+          }
+          
+          controlBoardSubStatus("Zone " + (String)x + ": " + (String)y + " tests", 5);
+
+          if(y >= 10){
+            break;  
+          }
+
+          delay(4000);
+          
+        }
+        //Serial.println("Zone: " + (String)x + " " + (String)tempInside[x] + " " + (String)humidityInside[x]);
+      }
+    }
+  //}
+}
+
+void autoWindowControl(){
+  
+  unsigned long currentMillis = millis();
+  if(currentMillis - lastWindowChange >= changeDelay){
+
+    // Tjek temperatur og luftfugithghed 
+    checkTempAndHumidity();
+
+    delay(5000);
+    
+    lastWindowChange = millis();
+
+    LCDclearScreen = true;
+    controlBoardStatus("Regulerer drivhus");
+    
+  
+    for (int x = 0; x < zonesCount; x++) {
+
+      controlBoardSubStatus("Zone: " + (String)(x+1));
+
+      if( abs( tempInside[x] - temp[x] ) > tempMargin ){
+
+        float tempMultiplier = abs(tempInside[x] - temp[x]); 
+    
+        if ( tempInside[x] > temp[x] && tempOutside < tempInside[x] )
+        {
+          autoOpenWindows(x, tempMultiplier); // CHECK
+        }
+
+        else if ( tempInside[x] > temp[x] && tempOutside > tempInside[x] )
+        {
+          autoCloseWindows(x, tempMultiplier); // CHECK
+        }
+
+        else if ( tempInside[x] < temp[x] && tempOutside > tempInside[x] )
+        {
+          autoOpenWindows(x, tempMultiplier); // CHECK
+        }
+
+        else if ( tempInside[x] < temp[x] && tempOutside < tempInside[x] )
+        {
+          autoCloseWindows(x, tempMultiplier); // CHECK
+        }
+      }
+      // Hvis temperaturen ligger hvor den skal, så juster i forhold til luftfugtighed.
+      else
+      {
+
+        if( abs( humidityInside[x] - humidity[x] ) > humidityMargin ){
+
+          float humidityMultiplier = abs(humidityInside[x] - humidity[x])/5; 
+
+          if ( humidityInside[x] > humidity[x] && humidityOutside < humidityInside[x] )
+          {
+            autoOpenWindows(x, humidityMultiplier);
+          }
+
+          if ( humidityInside[x] > humidity[x] && humidityOutside > humidityInside[x] )
+          {
+            autoCloseWindows(x, humidityMultiplier);
+          }
+
+          if ( humidityInside[x] < humidity[x] && humidityOutside > humidityInside[x] )
+          {
+            autoOpenWindows(x, humidityMultiplier);
+          }
+
+          if ( humidityInside[x] < humidity[x] && humidityOutside < humidityInside[x] )
+          {
+            autoCloseWindows(x, humidityMultiplier);
+          }
+        }
+      }
+    }
+  }
+}
+
+
+// Styring af LCD og modtagelse af data fra kontrol.
+void controlBoard(){
+
+  if(digitalRead(controlOpenPin)==LOW){
+    lcd.setBacklight(false);
+
+    digitalWrite(lightControlPin, HIGH);
+      
+  }else{ 
+    lcd.setBacklight(true);
+
+    digitalWrite(lightControlPin, LOW);
+    
+    if(LCDclearScreen == true){
+      lcd.clear();
+      LCDclearScreen = false;
+    }
+    
+    // Hvis systemet er sat til at køre automatisk
+    if(systemMode == false){
+      checkZoneChange();
+      checkSettingChange();
+      checkVariableChange();
+      
+      lcd.setCursor(0,2);
+      lcd.print("Temp:");
+    
+      lcd.setCursor(0,3);
+      lcd.print("Fugt:"); 
+      
+      lcd.setCursor(11,0);
+      lcd.print("Inde");
+      
+      lcd.setCursor(16,0);
+      lcd.print("Ude");
+      
+      
+      LCDprintCurrentZone();
+      LCDprintSettingVariable();
+      
+      LCDprintActualVariables();
+      
+    // Ellers hvis det er sat til at køre manuelt
+    }else{
+      lcd.setCursor(3,1);
+      lcd.print("Manuel Styring");
+    }
+  }
+}
+
+// false = automatisk, true = manuel
+void setSystemMode(boolean mode = false, boolean temporary = true){
+  if(mode == false)
+  {
+    if(changeSystemModeFlag==true){
+      // Reset automatisk styrings tids så automatisk styring ikke fortsætter lige efter mode-skift.
+      lastWindowChange = millis();
+      LCDclearScreen = true;
+    }
+    changeSystemModeFlag = false;
+    
+    // Automatisk styring
+    systemMode = mode;
+    manuelTimeout = 0;
+  }
+  else
+  {
+    if(changeSystemModeFlag==false){
+      // Reset automatisk styrings tids så automatisk styring ikke fortsætter lige efter mode-skift.
+      lastWindowChange = millis();
+      LCDclearScreen = true;
+    }
+    changeSystemModeFlag = true;
+    
+    // Manuel styring
+    if(temporary == true)
+    {
+      // Manuel styring i 30 sekunder
+      systemMode = true;
+      temporaryManuelStart = millis();
+      manuelTimeout = 30000;
+    }
+    else
+    {
+      systemMode = true;
+      // Sættes til nul, for aldrig at løbe ud.
+      manuelTimeout = 0;
+    }
+  }
+}
+
+// Funktion der sendes når der trykkes på en af knapperne på manuel-styrings-boksene
+void setTemporaryManuel(){
+  delay(100);
+  if(digitalRead(19) == LOW){
+    setSystemMode(true, true);
+  }
+}
+
+// Funktion som tjekker hvilken mode (automatisk eller manuelt) som systemet er i.
+void checkSystemMode(){
+  if(manuelTimeout == 0){
+    if(digitalRead(changeSystemModePin)==HIGH){
+      setSystemMode(true, false);  
+    }else{
+      setSystemMode(false, false);
+    }
+  }else if(millis() - temporaryManuelStart >= manuelTimeout){
+    setSystemMode(false, false);
+
+    for (int x = 0; x < zonesCount; x++) {
+      control_stop(x);
+    }
+  }
+}
+
+void checkVariableChange(){
+  if(digitalRead(changeSettingUpPin)==LOW){
+    if(changeSettingUpFlag == false){
+      
+      // Tjek om det er luftfugtighed eller temperatur for den enkelte zone der skal ændres.
+      if(currentSetting == "temp"){
+        temp[currentZone-1]++;
+      }
+      else if(currentSetting == "humidity"){
+        humidity[currentZone-1] =  humidity[currentZone-1]+5;
+      }
+      
+      changeSettingUpFlag = true; 
+    }
+  }else{
+    changeSettingUpFlag = false;
+  }
+  
+  if(digitalRead(changeSettingDownPin)==LOW){
+    if(changeSettingDownFlag == false){
+      
+      // Tjek om det er luftfugtighed eller temperatur for den enkelte zone der skal ændres.
+      
+      if(currentSetting == "temp"){
+        temp[currentZone-1] = temp[currentZone-1]-1;
+      }
+      else if(currentSetting == "humidity"){
+        humidity[currentZone-1] =  humidity[currentZone-1]-5;
+      }
+      
+      changeSettingDownFlag = true; 
+    }
+  }else{
+    changeSettingDownFlag = false;
+  }
+}
+
+void checkZoneChange(){
+  if(digitalRead(changeSettingToChangePin)==LOW){
+    if(changeSettingZoneFlag == false){
+      if(currentZone == 3){
+        currentZone = 1;
+      }else{
+        currentZone++;
+      }
+    }
+    changeSettingZoneFlag = true;
+  }else{
+    changeSettingZoneFlag = false;
+  }
+}
+
+void checkSettingChange(){
+  if(digitalRead(changeSettingZonePin)==HIGH){
+    currentSetting = "temp";
+  }else{
+    currentSetting = "humidity";
+  }
+}
+
+void LCDprintActualVariables(){
+  lcd.setCursor(11,2);
+  lcd.print(String(int(tempInside[currentZone-1])) + "C ");
+  lcd.setCursor(11,3);
+  lcd.print(String(int(humidityInside[currentZone-1])) + "%");
+
+  lcd.setCursor(16,2);
+  lcd.print(String(int(tempOutside)) + "C ");
+  lcd.setCursor(16,3);
+  lcd.print(String(int(humidityOutside)) + "%");
+}
+
+// Funktion til at skrive den værdi der ændres ud på displayet samtidig med at den blinker så man kan se det er denne værdi der ændres.
+void LCDprintSettingVariable(){
+  if(currentSetting=="temp"){
+    lcd.setCursor(6,3);
+    lcd.print(String(humidity[currentZone-1]) + "%");
+    
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - LCDpreviousBlinkMillis >= 500) {
+      LCDpreviousBlinkMillis = currentMillis;
+  
+      if (LCDblinkState == true) {
+        lcd.setCursor(6,2);
+        lcd.print(String(temp[currentZone-1]) + "C");
+        LCDblinkState = false;
+      } else {
+        lcd.setCursor(6,2);
+        lcd.print("   ");
+        LCDblinkState = true;
+      }
+    }
+  }else if(currentSetting=="humidity"){
+    lcd.setCursor(6,2);
+    lcd.print(String(temp[currentZone-1]) + "C");
+    
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - LCDpreviousBlinkMillis >= 500) {
+      LCDpreviousBlinkMillis = currentMillis;
+  
+      if (LCDblinkState == true) {
+        lcd.setCursor(6,3);
+        lcd.print(String(humidity[currentZone-1]) + "%");
+        LCDblinkState = false;
+      } else {
+        lcd.setCursor(6,3);
+        lcd.print("   ");
+        LCDblinkState = true;
+      }
+    }
+  }
+}
+
+void LCDprintCurrentZone(){
+  switch(currentZone){
+    case 1:
+      lcd.setCursor(0,0);
+      lcd.print("Zone: 1");
+      break;
+    
+    case 2:
+      lcd.setCursor(0,0);
+      lcd.print("Zone: 2");
+      break;
+    
+    case 3:
+      lcd.setCursor(0,0);
+      lcd.print("Zone: 3");
+      break;
+  }
+}

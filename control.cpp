@@ -22,6 +22,9 @@ static float control_margin = 500; // In milliseconds (changes smaller than this
 
 void control_init()
 {
+    // Default mode is auto
+    system_state = MODE_AUTO;
+  
     for (int i = 0; i < zones_num; i++) {
         // Configurations of pins for manual control
         pinMode(pin_open[i], INPUT_PULLUP);
@@ -83,10 +86,12 @@ void control_auto(){
             // Regulate after humidity 
             error = ref_hum[i] - hum_inside[i];
 
-            delta = hum_outside - hum_inside[i];
-            if( delta > 0) dir = 1; else dir = -1;
+            // The humidity will always be lower outside than inside, thus, no need for delta calculation for humidity.
 
-            control = hum_gain * error * (float)dir; 
+            /* delta = hum_outside - hum_inside[i];
+               if( delta > 0) dir = 1; else dir = -1; */
+
+            control = hum_gain * error;  // * (float)dir; 
         }
 
         // Depending on the sign of the control signal, either open or close windows.
@@ -182,8 +187,6 @@ void control_stop( uint8_t zone )
 
 void control_open( uint8_t zone)
 {
-    window_state = false;
-
     digitalWrite(pout_open[zone], LOW);
     digitalWrite(pout_close[zone], LOW);
 
@@ -191,8 +194,6 @@ void control_open( uint8_t zone)
     if(rain_state == false){
         digitalWrite(pout_kip_open[zone], LOW);
         digitalWrite(pout_kip_close[zone], LOW);
-
-        top_window_state = false;
     }
 }
 
