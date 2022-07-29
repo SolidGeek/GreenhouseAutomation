@@ -1,5 +1,7 @@
 #include "control.h"
 
+uint32_t control_timer;
+
 // Tasks for async control
 typedef struct{
     uint8_t id;
@@ -22,8 +24,8 @@ static float control_margin = 500; // In milliseconds (changes smaller than this
 
 void control_init()
 {
-    // Default mode is auto
-    system_state = MODE_AUTO;
+    // Default mode is auto, but for now manuel
+    system_state = MODE_MANUEL;
   
     for (int i = 0; i < zones_num; i++) {
         // Configurations of pins for manual control
@@ -51,11 +53,18 @@ void control_init()
 void control_run(){
 
     if( system_state == MODE_AUTO ){
-        // Run P controller
-        control_auto();
-    }else{
-        control_manuel();
+        // Run P controller once every 5 min
+        if( millis() - control_timer > CONTROL_INTERVAL_MS){
+            control_auto();
+            // Reset timer, ready for next
+            control_timer = millis();
+        }
+            
     }
+
+    // Always listen for manuel control commands
+    control_manuel();
+    
 
 
     control_manager();
@@ -73,18 +82,18 @@ void control_auto(){
     // Regulation done for each zone (they are kept seperate by doors)
     for (size_t i = 0; i < zones_num; i++)
     {
-        if ( abs( ref_temp[i] - temp_inside[i] ) > temp_margin )
+        if ( abs( ref_temp[i] - sensor_data.temp_inside[i] ) > temp_margin )
         {
             // Regulate after temperature 
-            error = ref_temp[i] - temp_inside[i];
+            error = ref_temp[i] - sensor_data.temp_inside[i];
 
-            delta = temp_outside - temp_inside[i];   
+            delta = sensor_data.temp_outside - sensor_data.temp_inside[i];   
             if( delta > 0) dir = 1; else dir = -1;
 
             control = temp_gain * error * (float)dir; 
         }else{
             // Regulate after humidity 
-            error = ref_hum[i] - hum_inside[i];
+            error = ref_hum[i] - sensor_data.hum_inside[i];
 
             // The humidity will always be lower outside than inside, thus, no need for delta calculation for humidity.
 
@@ -110,17 +119,25 @@ void control_auto(){
 
 void control_manuel(){
 
+    bool manuel_change = false;
+
     for (int i = 0; i < zones_num; i++) {
         if(digitalRead(pin_open[i]) == LOW){
             control_open(i);
+            manuel_change = true;
         }
         else if(digitalRead(pin_close[i]) == LOW){
             control_close(i);  
+            manuel_change = true;
         }
         else{
             control_stop(i);
         }
     }
+
+    // If a manuel command has been received, reset the control timer
+    if( manuel_change )
+        control_timer = millis();
 
 }
 
@@ -191,7 +208,7 @@ void control_open( uint8_t zone)
     digitalWrite(pout_close[zone], LOW);
 
     // Only open the top windows if it is not raining
-    if(rain_state == false){
+    if(sensor_data.rain_state == false){
         digitalWrite(pout_kip_open[zone], LOW);
         digitalWrite(pout_kip_close[zone], LOW);
     }

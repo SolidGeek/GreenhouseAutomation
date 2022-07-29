@@ -13,22 +13,22 @@ void setup() {
   Serial3.begin(115200);
   uart_transfer.begin(Serial3);
 
-  sensors_init();
   control_init();
-
-  
+  sensors_init();
       
 }
 
 void loop() {
 
-  
-  sensor_dht_read();
-  uart_transfer.sendDatum( sensor_data );
 
+  // Run system
+  sensor_run();
   control_run();
 
+  // Send data to WiFi app
+  uart_transfer.sendDatum( sensor_data );
 
-  delay(1000);
+
+  delay(100);
   
 }

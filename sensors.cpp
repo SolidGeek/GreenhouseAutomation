@@ -1,19 +1,11 @@
 #include "sensors.h"
 
 // Measurements
-
 sensor_data_t sensor_data = {0};
-
-float temp_inside[3] = {0.0};
-float hum_inside[3] = {0.0};
-float temp_outside = 0.0;
-float hum_outside = 0.0;
-float wind_speed = 0.0;
-boolean rain_state = false;
-
+uint32_t sensor_timer; 
 
 int dht_pins[DHT_COUNT] = { 5, 2, 3, 4 };
-DHT * dht[DHT_COUNT];
+SimpleDHT22 * dht[DHT_COUNT];
 
 void sensors_init()
 {
@@ -22,27 +14,47 @@ void sensors_init()
     pinMode(pin_doors, INPUT_PULLUP);
 
     for (int n = 0; n < DHT_COUNT; n++){
-        dht[n] = new DHT(dht_pins[n], DHT_TYPE); // define a sensor at pin 'n' with sensor type DHT11
-        dht[n]->begin();
+        dht[n] = new SimpleDHT22(dht_pins[n]); // define a sensor at pin 'n' with sensor type DHT11
     }
 }
 
+void sensor_run(){
 
+  if( millis() - sensor_timer  > 5000 ){
+    
+    sensor_timer = millis();
 
-void sensor_dht_read(){
+    // Read all DHT Sensors
+    for(uint8_t i = 0; i < 4; i++ ){
+  
+      sensor_dht_read(i);
+    }
+
+  }
+
+}
+
+void sensor_dht_read( uint8_t num ){
 
     // Reading temperature or humidity takes about 250 milliseconds!
-    float hum = dht[DHT_SENSOR_OUTSIDE]->readHumidity();
-    float temp = dht[DHT_SENSOR_OUTSIDE]->readTemperature();
+    float temp = 0;
+    float hum = 0;
 
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(hum) || isnan(temp) ) {
+    int status = dht[num]->read2(&temp, &hum, NULL);
+
+    if( status != SimpleDHTErrSuccess ){
+      Serial.print("Read DHT22 failed, err="); Serial.print(SimpleDHTErrCode(status)); Serial.println(num);
       return;
     }
 
-    sensor_data.temp_outside = temp;
-    sensor_data.hum_outside = hum;
-   
+    if( num == DHT_SENSOR_OUTSIDE ){
+      sensor_data.temp_outside = temp;
+      sensor_data.hum_outside = hum;
+    }else{
+      sensor_data.temp_inside[num-1] = temp;
+      sensor_data.hum_inside[num-1] = hum;
+    }
+
 }
 
 void sensor_rain_read(){

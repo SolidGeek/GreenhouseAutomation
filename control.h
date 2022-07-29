@@ -6,6 +6,9 @@
 
 #define MAX_TASKS 16 
 
+#define CONTROL_INTERVAL_MS 5*60*1000
+ 
+
 // References for controller
 extern float ref_temp[3];
 extern float ref_hum[3];

@@ -4,14 +4,17 @@
 #include <ESP8266mDNS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
 #include <ArduinoJson.h>
 #include <SerialTransfer.h>
 
 typedef struct{
   float temp_outside;
-  float hum_outside;
   float temp_inside[3];
+  float hum_outside;
   float hum_inside[3];
+  float wind_speed;
+  bool rain_state;
 } sensor_data_t;
 
 
@@ -102,11 +105,15 @@ void setup(){
     
   });
 
+  AsyncElegantOTA.begin(&server);    // Start AsyncElegantOTAw
+
   // Start server
   server.begin();
 
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
+
+  
 }
  
 void loop(){
@@ -117,5 +124,6 @@ void loop(){
   }
 
   MDNS.update();
+
   
 }
