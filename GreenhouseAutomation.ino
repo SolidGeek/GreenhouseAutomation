@@ -16,10 +16,18 @@ void setup() {
   control_init();
   sensors_init();
 
+  pinMode( pin_cabinet_open, INPUT_PULLUP );
+  pinMode( pout_light_control, OUTPUT );
+
 }
 
 void loop() {
 
+  if( ! digitalRead( pin_cabinet_open )){
+    digitalWrite( pout_light_control, HIGH );
+  }else{
+    digitalWrite( pout_light_control, LOW );
+  }
 
   // Run system
   sensor_run();
