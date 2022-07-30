@@ -29,7 +29,7 @@ const uint8_t pin_change_zone             = 17;
 const uint8_t pin_value_increase          = 15;
 const uint8_t pin_value_decrease          = 16;
 const uint8_t pin_change_setting          = 14;
-const uint8_t pin_cabinet_ope             = 10;
+const uint8_t pin_cabinet_open             = 10;
 
 
 // Sensor pins

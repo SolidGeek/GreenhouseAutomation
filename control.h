@@ -6,7 +6,7 @@
 
 #define MAX_TASKS 16 
 
-#define CONTROL_INTERVAL_MS 5*60*1000
+#define CONTROL_INTERVAL_MS 900000 // Every 15 min
  
 
 // References for controller
@@ -16,8 +16,8 @@ extern float temp_margin;
 extern float control_margin;
 
 // P control gains
-const float temp_gain = 1.0;
-const float hum_gain = 1.0;
+const float temp_gain = 1500.0; // Per 1 degree error in temp, open/close this amount of ms
+const float hum_gain = 200.0; // Per 1% error in humidty, open/close this amount of ms
 
 // Setup of all output pins
 void control_init();

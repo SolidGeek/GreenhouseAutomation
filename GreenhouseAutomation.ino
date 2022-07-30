@@ -15,7 +15,7 @@ void setup() {
 
   control_init();
   sensors_init();
-      
+
 }
 
 void loop() {
@@ -27,7 +27,6 @@ void loop() {
 
   // Send data to WiFi app
   uart_transfer.sendDatum( sensor_data );
-
 
   delay(100);
   

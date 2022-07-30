@@ -16,7 +16,7 @@ typedef struct{
 static task tasks[MAX_TASKS];
 
 // Control setpoints for automatic mode 
-static float ref_temp[3] = {20,20,20};
+static float ref_temp[3] = {20,25,25};
 static float ref_hum[3] = {50,50,50};
 static float temp_margin = 1.0;
 static float control_margin = 500; // In milliseconds (changes smaller than this is just stupido)
@@ -25,7 +25,9 @@ static float control_margin = 500; // In milliseconds (changes smaller than this
 void control_init()
 {
     // Default mode is auto, but for now manuel
-    system_state = MODE_MANUEL;
+    system_state = MODE_AUTO;
+
+    pinMode( pin_change_mode, INPUT_PULLUP );
   
     for (int i = 0; i < zones_num; i++) {
         // Configurations of pins for manual control
@@ -51,6 +53,12 @@ void control_init()
 }
 
 void control_run(){
+
+    system_state = MODE_AUTO; 
+
+    if( digitalRead(pin_change_mode) ){
+      system_state = MODE_MANUEL;
+    }
 
     if( system_state == MODE_AUTO ){
         // Run P controller once every 5 min
@@ -91,6 +99,7 @@ void control_auto(){
             if( delta > 0) dir = 1; else dir = -1;
 
             control = temp_gain * error * (float)dir; 
+            Serial.print("Zone " + (String)i + " - Temperature error: " + (String)error + ", output:"); Serial.println(abs(control));
         }else{
             // Regulate after humidity 
             error = ref_hum[i] - sensor_data.hum_inside[i];
@@ -101,11 +110,13 @@ void control_auto(){
                if( delta > 0) dir = 1; else dir = -1; */
 
             control = hum_gain * error;  // * (float)dir; 
+            Serial.print("Zone " + (String)i + " - Humidty error: " + (String)error + ", output:"); Serial.println(abs(control));
         }
 
         // Depending on the sign of the control signal, either open or close windows.
         
         if( abs( control ) > control_margin ){
+            
             if( control > 0){
                 // Open windows in zone i, for a total of "control" milliseconds
                 control_task( control_open, control_stop, i, abs(control) );
@@ -119,7 +130,7 @@ void control_auto(){
 
 void control_manuel(){
 
-    bool manuel_change = false;
+    static bool manuel_change = false;
 
     for (int i = 0; i < zones_num; i++) {
         if(digitalRead(pin_open[i]) == LOW){
@@ -129,10 +140,13 @@ void control_manuel(){
         else if(digitalRead(pin_close[i]) == LOW){
             control_close(i);  
             manuel_change = true;
-        }
-        else{
+        }else{
+          // If manuel is no longer used, stop motors
+          if( manuel_change ){
             control_stop(i);
+          }
         }
+        
     }
 
     // If a manuel command has been received, reset the control timer

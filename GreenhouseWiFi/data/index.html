@@ -88,7 +88,7 @@
                                     <div class="flex-fill ps-2">
                                         <h6>Humidity</h6>
                                         <div class="d-flex">
-                                            <h3 class="d-inline"><span id=hum_zone_1">0.0</span> &#37;</h3>
+                                            <h3 class="d-inline"><span id="hum_zone_1">0.0</span> &#37;</h3>
                                             <span class="ps-2 text-primary">+4.85</span>
                                         </div>
 
@@ -163,6 +163,8 @@
 
         <script type="text/javascript">
 
+            var ref_temp = [25, 25, 20];
+            var ref_hum = [50, 50, 50];
 
             function getSize() {
                 let w = document.getElementById('main-chart').offsetWidth;
@@ -249,11 +251,20 @@
                         $("#temp_outside").text(d.temp_outside);
                         $("#hum_outside").text(d.hum_outside);
 
+                        $('#temp_zone_1').text(d.temp_inside[0].toFixed(2) );
+                        $('#temp_zone_2').text(d.temp_inside[1].toFixed(2) );
+                        $('#temp_zone_3').text(d.temp_inside[2].toFixed(2) );
+
+                        $('#hum_zone_1').text(d.hum_inside[0].toFixed(2) );
+                        $('#hum_zone_2').text(d.hum_inside[1].toFixed(2) );
+                        $('#hum_zone_3').text(d.hum_inside[2].toFixed(2) );
+
                         const date = new Date();
                         let seconds = date.getTime()/1000.0;
 
                         index++;
-
+                        
+                        // Plot data
                         if( index >= buffer_size ){
                             data[0].shift();
                             data[1].shift();
