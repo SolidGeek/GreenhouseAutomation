@@ -16,7 +16,7 @@ typedef struct{
 static task tasks[MAX_TASKS];
 
 // Control setpoints for automatic mode 
-static float ref_temp[3] = {20,25,25};
+static float ref_temp[3] = {20,20,20};
 static float ref_hum[3] = {50,50,50};
 static float temp_margin = 1.0;
 static float control_margin = 500; // In milliseconds (changes smaller than this is just stupido)
@@ -95,6 +95,7 @@ void control_auto(){
             // Regulate after temperature 
             error = ref_temp[i] - sensor_data.temp_inside[i];
 
+            // Delta is used to determine how the error is corrected
             delta = sensor_data.temp_outside - sensor_data.temp_inside[i];   
             if( delta > 0) dir = 1; else dir = -1;
 
@@ -150,8 +151,10 @@ void control_manuel(){
     }
 
     // If a manuel command has been received, reset the control timer
-    if( manuel_change )
+    if( manuel_change ){
         control_timer = millis();
+        manuel_change = false;
+    }
 
 }
 
