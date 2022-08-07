@@ -18,7 +18,7 @@ typedef struct{
 static task tasks[MAX_TASKS];
 
 // Control setpoints for automatic mode 
-static float ref_temp[3] = {20,20,20};
+static float ref_temp[3] = {22,22,22};
 static float ref_hum[3] = {50,50,50};
 static float temp_margin = 1.0;
 static float control_margin = 500; // In milliseconds (changes smaller than this is just stupido)
