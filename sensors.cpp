@@ -24,9 +24,11 @@ void sensor_run(){
     
     sensor_timer = millis();
 
+    // Read rain sensor
+    sensor_rain_read();
+    
     // Read all DHT Sensors
     for(uint8_t i = 0; i < 4; i++ ){
-  
       sensor_dht_read(i);
     }
 
@@ -59,6 +61,15 @@ void sensor_dht_read( uint8_t num ){
 
 void sensor_rain_read(){
 
+  // False, it is not raining
+  sensor_data.rain_state = false;
+
+  // Read rain sensor (goes LOW if water is detected)
+  bool state = digitalRead( pin_rain );
+
+  if( state == LOW ){
+    sensor_data.rain_state = true;
+  }
 
 }
 

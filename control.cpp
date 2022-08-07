@@ -2,6 +2,8 @@
 
 uint32_t control_timer;
 
+// bool top_window_state = false; // False = open, true = closed
+
 // Tasks for async control
 typedef struct{
     uint8_t id;
@@ -70,11 +72,17 @@ void control_run(){
             
     }
 
+    if( sensor_data.rain_state == true && top_window_state == false ){
+      for (int i = 0; i < zones_num; i++) {
+        // Close all top windows for 35s 
+        control_task( control_close_top, control_stop, i, 35000 );
+      }
+      top_window_state = true; // All top windows are now closed
+    }
+
     // Always listen for manuel control commands
     control_manuel();
     
-
-
     control_manager();
 
 }
@@ -131,29 +139,25 @@ void control_auto(){
 
 void control_manuel(){
 
-    static bool manuel_change = false;
+    static bool manuel_change[3] = {false};
 
     for (int i = 0; i < zones_num; i++) {
         if(digitalRead(pin_open[i]) == LOW){
             control_open(i);
-            manuel_change = true;
+            manuel_change[i] = true;
         }
         else if(digitalRead(pin_close[i]) == LOW){
             control_close(i);  
-            manuel_change = true;
+            manuel_change[i] = true;
         }else{
           // If manuel is no longer used, stop motors
-          if( manuel_change ){
+          if( manuel_change[i] ){
             control_stop(i);
+            control_timer = millis();
+            manuel_change[i] = false;
           }
         }
         
-    }
-
-    // If a manuel command has been received, reset the control timer
-    if( manuel_change ){
-        control_timer = millis();
-        manuel_change = false;
     }
 
 }
@@ -226,6 +230,7 @@ void control_open( uint8_t zone)
 
     // Only open the top windows if it is not raining
     if(sensor_data.rain_state == false){
+        top_window_state = false;
         digitalWrite(pout_kip_open[zone], LOW);
         digitalWrite(pout_kip_close[zone], LOW);
     }
@@ -236,6 +241,10 @@ void control_close( uint8_t zone)
     digitalWrite(pout_open[zone], HIGH);
     digitalWrite(pout_close[zone], HIGH);
 
+    control_close_top( zone );
+}
+
+void control_close_top( uint8_t zone){
     // Close the top windows 
     digitalWrite(pout_kip_open[zone], HIGH);
     digitalWrite(pout_kip_close[zone], HIGH);
