@@ -38,6 +38,9 @@ const char* ssid = "NOKIA-7CF1";
 const char* pass = "Solvang121";
 const char* host = "greenhouse";
 
+// Replace with your own address
+const char* handler_url = "https://greenhouse.solidgeek.dk/handler.php";
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 SerialTransfer uart_transfer;
@@ -86,22 +89,10 @@ void setup(){
   
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
 
-    DynamicJsonDocument json(1024);
-
-    json["temp_outside"] = sensor_data.temp_outside;
-    json["hum_outside"] = sensor_data.hum_outside;
-
-    json["temp_inside"][0] = sensor_data.temp_inside[0];
-    json["temp_inside"][1] = sensor_data.temp_inside[1];
-    json["temp_inside"][2] = sensor_data.temp_inside[2];
-
-    json["hum_inside"][0] = sensor_data.hum_inside[0];
-    json["hum_inside"][1] = sensor_data.hum_inside[1];
-    json["hum_inside"][2] = sensor_data.hum_inside[2];
-
-    char stringout[200];
-    serializeJson(json, stringout);
-    request->send(200, "application/json", stringout);
+    char buf[200];
+    generate_json_string(buf);
+    
+    request->send(200, "application/json", buf);
     
   });
 
@@ -115,15 +106,60 @@ void setup(){
 
   
 }
- 
+
+void generate_json_string( char * buf ){
+  
+    DynamicJsonDocument json(1024);
+
+    json["temp_out"] = sensor_data.temp_outside;
+    json["hum_out"] = sensor_data.hum_outside;
+
+    json["temp_in"][0] = sensor_data.temp_inside[0];
+    json["temp_in"][1] = sensor_data.temp_inside[1];
+    json["temp_in"][2] = sensor_data.temp_inside[2];
+
+    json["hum_in"][0] = sensor_data.hum_inside[0];
+    json["hum_in"][1] = sensor_data.hum_inside[1];
+    json["hum_in"][2] = sensor_data.hum_inside[2];
+
+    json["wind_speed"] = sensor_data.wind_speed;
+    json["is_rain"] = sensor_data.rain_state;
+
+    // Control values
+    json["output"][0] = 0;
+    json["output"][1] = 0;
+    json["output"][2] = 0;
+
+    serializeJson(json, buf);
+    
+}
+
 void loop(){
   // Read sensor data from Mega
   if( uart_transfer.available()  ){
     // Read struct into command_buffer
     uart_transfer.rxObj( sensor_data );
+
+    // Publish data to database
+    if(WiFi.status()== WL_CONNECTED){
+
+      char buf[200];
+      WiFiClient client;
+      HTTPClient http;
+      
+      // Your Domain name with URL path or IP address with path
+      http.begin(client, handler_url);
+      
+      http.addHeader("Content-Type", "application/json");
+
+      generate_json_string( buf );
+      int httpResponseCode = http.POST( buf );
+
+      // Free resources
+      http.end();
+    }
   }
 
   MDNS.update();
-
   
 }
