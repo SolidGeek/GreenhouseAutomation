@@ -111,15 +111,15 @@ void control_auto(){
             Serial.print("Zone " + (String)i + " - Temperature error: " + (String)error + ", output:"); Serial.println(abs(control));
         }else{
             // Regulate after humidity 
-            error = ref_hum[i] - sensor_data.hum_inside[i];
+            // error = ref_hum[i] - sensor_data.hum_inside[i];
 
             // The humidity will always be lower outside than inside, thus, no need for delta calculation for humidity.
 
             /* delta = hum_outside - hum_inside[i];
                if( delta > 0) dir = 1; else dir = -1; */
 
-            control = hum_gain * error;  // * (float)dir; 
-            Serial.print("Zone " + (String)i + " - Humidty error: " + (String)error + ", output:"); Serial.println(abs(control));
+            // control = hum_gain * error;  // * (float)dir; 
+            // Serial.print("Zone " + (String)i + " - Humidty error: " + (String)error + ", output:"); Serial.println(abs(control));
         }
 
         // Depending on the sign of the control signal, either open or close windows.
@@ -145,10 +145,12 @@ void control_manuel(){
         if(digitalRead(pin_open[i]) == LOW){
             control_open(i);
             manuel_change[i] = true;
+            Serial.println("Open");
         }
         else if(digitalRead(pin_close[i]) == LOW){
             control_close(i);  
             manuel_change[i] = true;
+            Serial.println("Close");
         }else{
           // If manuel is no longer used, stop motors
           if( manuel_change[i] ){

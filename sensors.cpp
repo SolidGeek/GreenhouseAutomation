@@ -49,6 +49,8 @@ void sensor_dht_read( uint8_t num ){
       return;
     }
 
+    Serial.print("Read DHT22: "); Serial.print(temp); Serial.print(" "); Serial.println(hum);
+
     if( num == DHT_SENSOR_OUTSIDE ){
       sensor_data.temp_outside = temp;
       sensor_data.hum_outside = hum;
